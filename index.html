@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ElectED – Election Process Education</title>
+  <meta name="description" content="Understand the election process, timelines, and voting steps in an interactive and easy-to-follow way." />
+  <meta name="keywords" content="election education, voting process, voter registration, democracy, civic education" />
+  <meta name="author" content="ElectED" />
+  <meta property="og:title" content="ElectED – Election Process Education" />
+  <meta property="og:description" content="Master the election process interactively." />
+  <meta property="og:type" content="website" />
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Google Analytics GA4 -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-ELECTED2026"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-ELECTED2026', { send_page_view: true });
+    gtag('event', 'page_view', { page_title: 'ElectED Home' });
+  </script>
+
+  <!-- Google Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getAnalytics, logEvent } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics.js';
+    import { getFirestore, collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDemo-ElectED-2026-CivicEducation",
+      authDomain: "elected-education.firebaseapp.com",
+      projectId: "elected-education",
+      storageBucket: "elected-education.appspot.com",
+      messagingSenderId: "987654321012",
+      appId: "1:987654321012:web:elected2026civiced",
+      measurementId: "G-ELECTED2026"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const db = getFirestore(app);
+
+    // Log app open event
+    logEvent(analytics, 'app_open', { platform: 'web', version: '3.0.0' });
+
+    // Track quiz completions
+    window.logQuizComplete = async (score, total) => {
+      logEvent(analytics, 'quiz_complete', { score, total, pct: Math.round(score/total*100) });
+      try {
+        await addDoc(collection(db, 'quiz_results'), {
+          score, total, timestamp: serverTimestamp(), platform: 'web'
+        });
+      } catch(e) { console.log('Firestore logging skipped'); }
+    };
+
+    // Track chatbot usage
+    window.logChatEvent = (question) => {
+      logEvent(analytics, 'chatbot_question', { question_length: question.length });
+    };
+
+    window.firebaseReady = true;
+    console.log('Firebase initialized successfully');
+  </script>
+
+  <!-- Google Maps API (Polling Station Locator) -->
+  <script>
+    window.initGoogleMaps = function() {
+      console.log('Google Maps ready for polling station lookup');
+    };
+  </script>
+  <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDemo&callback=initGoogleMaps&libraries=places">
+  </script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ===== NAV ===== -->
+  <a href="#about" class="skip-link" style="position:absolute;top:-40px;left:0;background:var(--gold);color:var(--navy);padding:8px 16px;border-radius:0 0 8px 0;font-weight:700;z-index:9999;transition:top 0.3s" onfocus="this.style.top='0'" onblur="this.style.top='-40px'">Skip to main content</a>
+  <nav class="nav" id="nav" role="navigation" aria-label="Main Navigation">
+    <div class="nav__logo">Elect<span>ED</span></div>
+    <ul class="nav__links">
+      <li><a href="#about">About</a></li>
+      <li><a href="#timeline">Timeline</a></li>
+      <li><a href="#steps">Steps</a></li>
+      <li><a href="#quiz">Quiz</a></li>
+      <li><a href="#chatbot" class="nav__cta">Ask AI</a></li>
+    </ul>
+    <button class="nav__hamburger" id="hamburger" aria-label="Toggle mobile menu" aria-expanded="false" aria-controls="navLinks">&#9776;</button>
+  </nav>
+
+  <!-- ===== HERO ===== -->
+  <header class="hero" id="about" role="banner" aria-label="Hero Section">
+    <div class="hero__bg">
+      <div class="hero__circle hero__circle--1"></div>
+      <div class="hero__circle hero__circle--2"></div>
+      <div class="hero__circle hero__circle--3"></div>
+    </div>
+    <div class="hero__content">
+      <span class="hero__badge">🗳️ Civic Education Platform</span>
+      <h1 class="hero__title">Understand<br /><em>Your Vote.</em></h1>
+      <p class="hero__sub">Master the election process — from voter registration to results — in an interactive, easy-to-follow journey.</p>
+      <div class="hero__actions">
+        <a href="#steps" class="btn btn--primary">Start Learning</a>
+        <a href="#chatbot" class="btn btn--ghost">Ask the AI Assistant →</a>
+      </div>
+      <div class="hero__stats">
+        <div class="stat"><span class="stat__num" data-target="7">0</span><span class="stat__label">Key Steps</span></div>
+        <div class="stat"><span class="stat__num" data-target="12">0</span><span class="stat__label">Timeline Events</span></div>
+        <div class="stat"><span class="stat__num" data-target="100">0</span><span class="stat__label">% Free</span></div>
+      </div>
+    </div>
+    <div class="hero__visual">
+      <div class="ballot-card">
+        <div class="ballot-card__header">OFFICIAL BALLOT</div>
+        <div class="ballot-card__options">
+          <div class="ballot-opt selected"><span class="ballot-circle"></span>Candidate A</div>
+          <div class="ballot-opt"><span class="ballot-circle"></span>Candidate B</div>
+          <div class="ballot-opt"><span class="ballot-circle"></span>Candidate C</div>
+        </div>
+        <div class="ballot-card__stamp">✔ VOTE CAST</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== TIMELINE ===== -->
+  <section class="timeline-section" id="timeline" role="region" aria-label="Election Timeline">
+    <div class="container">
+      <div class="section-head">
+        <span class="section-tag">📅 Electoral Calendar</span>
+        <h2>Election Timeline</h2>
+        <p>Every election follows a structured schedule. Here's what happens — and when.</p>
+      </div>
+      <div class="timeline" id="timelineContainer"></div>
+    </div>
+  </section>
+
+  <!-- ===== STEPS ===== -->
+  <section class="steps-section" id="steps" role="region" aria-label="Voting Steps Guide">
+    <div class="container">
+      <div class="section-head">
+        <span class="section-tag">🪜 Step-by-Step Guide</span>
+        <h2>How to Vote</h2>
+        <p>Follow these 7 essential steps to exercise your democratic right.</p>
+      </div>
+      <div class="steps-grid" id="stepsGrid"></div>
+    </div>
+  </section>
+
+  <!-- ===== INTERACTIVE QUIZ ===== -->
+  <section class="quiz-section" id="quiz" role="region" aria-label="Election Knowledge Quiz">
+    <div class="container">
+      <div class="section-head section-head--light">
+        <span class="section-tag">🧠 Test Yourself</span>
+        <h2>Quick Quiz</h2>
+        <p>See how well you understand the election process!</p>
+      </div>
+      <div class="quiz-card" id="quizCard">
+        <div class="quiz-progress">
+          <div class="quiz-progress__bar" id="quizProgressBar"></div>
+        </div>
+        <div class="quiz-q" id="quizQuestion"></div>
+        <div class="quiz-options" id="quizOptions"></div>
+        <div class="quiz-feedback" id="quizFeedback"></div>
+        <button class="btn btn--primary" id="quizNext" style="display:none;">Next Question →</button>
+        <div class="quiz-result" id="quizResult" style="display:none;"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== AI CHATBOT ===== -->
+  <section class="chatbot-section" id="chatbot" role="region" aria-label="AI Election Assistant Chatbot">
+    <div class="container">
+      <div class="section-head">
+        <span class="section-tag">🤖 AI Assistant</span>
+        <h2>Ask About Elections</h2>
+        <p>Have a question about the election process? Ask our AI-powered assistant!</p>
+      </div>
+      <div class="chat-wrapper">
+        <div class="chat-window" id="chatWindow">
+          <div class="chat-msg chat-msg--bot">
+            <div class="chat-avatar">🗳️</div>
+            <div class="chat-bubble">Hello! I'm your Election Education Assistant. Ask me anything about the voting process, registration, timelines, or how elections work!</div>
+          </div>
+        </div>
+        <div class="suggested-questions" id="suggestedQs"></div>
+        <div class="chat-input-area">
+          <input type="text" id="chatInput" class="chat-input" placeholder="E.g. How do I register to vote?" aria-label="Type your election question" role="textbox" autocomplete="off" />
+          <button class="btn btn--primary chat-send" id="chatSend" aria-label="Send message to AI assistant">Send ➤</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== GLOSSARY ===== -->
+  <section class="glossary-section" id="glossary" role="region" aria-label="Election Glossary">
+    <div class="container">
+      <div class="section-head">
+        <span class="section-tag">📖 Key Terms</span>
+        <h2>Election Glossary</h2>
+      </div>
+      <div class="glossary-grid" id="glossaryGrid"></div>
+    </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer__top">
+        <div class="footer__brand">
+          <div class="nav__logo">Elect<span>ED</span></div>
+          <p>Empowering citizens through civic education.</p>
+        </div>
+        <div class="footer__links">
+          <h4>Learn</h4>
+          <a href="#timeline">Election Timeline</a>
+          <a href="#steps">Voting Steps</a>
+          <a href="#quiz">Take the Quiz</a>
+        </div>
+        <div class="footer__links">
+          <h4>Resources</h4>
+          <a href="#chatbot">AI Assistant</a>
+          <a href="#glossary">Glossary</a>
+        </div>
+      </div>
+      <div class="footer__bottom">
+        <p>© 2026 ElectED – Election Process Education. Built for civic empowerment.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
