@@ -1,827 +1,457 @@
 /**
- * ElectEd - Election Process Education
- * script.js — Main Application Logic
+ * @file script.js
+ * @description ElectED – Election Process Education
+ * @version 2.0.0
+ * @author ElectED Team
+ * @license MIT
  *
  * Features:
- * - Interactive AI Chat Assistant (Anthropic API)
- * - Election Knowledge Quiz
- * - Dynamic Steps Grid
- * - Smooth Navigation & Accessibility
- * - Google Analytics / Firebase integration hooks
- * - Scroll-to-top
- * - Hamburger menu
- * - Intersection Observer animations
+ *  - Responsive navigation with scroll detection
+ *  - Animated counters with IntersectionObserver
+ *  - Interactive ballot card
+ *  - Timeline reveal animations
+ *  - Accordion step cards
+ *  - 7-question quiz engine with scoring
+ *  - AI-powered chatbot (via localhost backend)
+ *  - Offline fallback smart responses
+ *  - Glossary with reveal animations
+ *  - Smooth scroll navigation
+ *
+ * @requires server.js - Node.js backend for AI chat
  */
 
-"use strict";
+'use strict';
 
-/* ===================================================
-   CONSTANTS & DATA
-   =================================================== */
+// ========== NAV SCROLL ==========
+const nav = document.getElementById('nav');
+window.addEventListener('scroll', () => {
+  nav.classList.toggle('scrolled', window.scrollY > 50);
+});
 
-const STEPS_DATA = [
+// ========== HAMBURGER (mobile) ==========
+const hamburger = document.getElementById('hamburger');
+const navLinks = document.querySelector('.nav__links');
+hamburger.addEventListener('click', () => {
+  navLinks.style.display = navLinks.style.display === 'flex' ? 'none' : 'flex';
+  navLinks.style.flexDirection = 'column';
+  navLinks.style.position = 'absolute';
+  navLinks.style.top = '70px';
+  navLinks.style.right = '24px';
+  navLinks.style.background = 'rgba(10,22,40,0.97)';
+  navLinks.style.padding = '16px 24px';
+  navLinks.style.borderRadius = '12px';
+  navLinks.style.gap = '14px';
+});
+
+// ========== COUNTER ANIMATION ==========
+function animateCounter(el) {
+  const target = +el.dataset.target;
+  const step = Math.ceil(target / 40);
+  let current = 0;
+  const timer = setInterval(() => {
+    current = Math.min(current + step, target);
+    el.textContent = current + (target === 100 ? '%' : '');
+    if (current >= target) clearInterval(timer);
+  }, 40);
+}
+const counterEls = document.querySelectorAll('.stat__num');
+const counterObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { animateCounter(e.target); counterObserver.unobserve(e.target); } });
+}, { threshold: 0.5 });
+counterEls.forEach(el => counterObserver.observe(el));
+
+// ========== BALLOT CARD INTERACTION ==========
+document.querySelectorAll('.ballot-opt').forEach(opt => {
+  opt.addEventListener('click', () => {
+    document.querySelectorAll('.ballot-opt').forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+  });
+});
+
+// ========== TIMELINE DATA ==========
+const timelineData = [
+  { date: "12 Months Before", title: "Election Announced", desc: "The election commission officially announces the upcoming election date and begins preparations." },
+  { date: "10 Months Before", title: "Voter Registration Opens", desc: "Citizens can register or update their voter registration details to become eligible to vote." },
+  { date: "8 Months Before", title: "Candidate Filing Period", desc: "Potential candidates file their nomination papers and declare their intent to run for office." },
+  { date: "6 Months Before", title: "Nomination Deadline", desc: "The last date for candidates to submit their nomination documents to the election authority." },
+  { date: "4 Months Before", title: "Campaign Period Begins", desc: "Official campaign period starts. Candidates begin rallies, advertisements, and public outreach." },
+  { date: "2 Months Before", title: "Voter Registration Closes", desc: "Final deadline for citizen voter registration. After this, no new registrations are accepted." },
+  { date: "1 Month Before", title: "Voter ID Cards Distributed", desc: "Eligible registered voters receive their official voter identification cards and polling station details." },
+  { date: "2 Weeks Before", title: "Campaign Blackout Period", desc: "Campaigning is prohibited to allow voters time to reflect without political influence." },
+  { date: "Election Day", title: "🗳️ Voting Day", desc: "Polling stations open. Registered voters cast their ballots. Officials monitor for free and fair elections." },
+  { date: "Election Day Evening", title: "Polls Close", desc: "Polling stations close and ballot boxes are sealed. The counting process officially begins." },
+  { date: "Night of Election", title: "Vote Counting", desc: "Ballots are counted transparently under supervision of election officials and representatives." },
+  { date: "Day After Election", title: "Results Declared", desc: "Final results are announced. The winning candidate or party is declared and certification begins." }
+];
+
+const timelineContainer = document.getElementById('timelineContainer');
+timelineData.forEach((item, i) => {
+  const div = document.createElement('div');
+  div.className = 'timeline-item';
+  div.innerHTML = `
+    <div class="timeline-item__dot"></div>
+    <div class="timeline-card">
+      <div class="timeline-card__date">${item.date}</div>
+      <h3>${item.title}</h3>
+      <p>${item.desc}</p>
+    </div>`;
+  timelineContainer.appendChild(div);
+});
+
+// ========== STEPS DATA ==========
+const stepsData = [
   {
-    icon: "🏛️",
-    title: "Check Your Eligibility",
-    desc: "Confirm you meet age, citizenship, and residency requirements to vote in your jurisdiction.",
-    num: 1
+    icon: "📋",
+    title: "1. Check Eligibility",
+    desc: "Confirm you meet the legal requirements: minimum voting age, citizenship status, and residency criteria.",
+    detail: "Requirements typically include: being 18+ years old, being a citizen, not having certain criminal convictions, and living in the electoral district."
   },
   {
     icon: "📝",
-    title: "Register to Vote",
-    desc: "Submit a voter registration form online, by mail, or in person before your region's deadline.",
-    num: 2
+    title: "2. Register to Vote",
+    desc: "Complete the official voter registration process before the deadline.",
+    detail: "Registration can usually be done online, by mail, or in person at a government office. You'll need your ID and proof of address."
   },
   {
-    icon: "🔍",
-    title: "Research Candidates & Issues",
-    desc: "Read candidate platforms, attend debates, and review nonpartisan voter guides to make informed decisions.",
-    num: 3
-  },
-  {
-    icon: "🗓️",
-    title: "Know the Election Dates",
-    desc: "Mark primary, runoff, and general election dates on your calendar. Check early voting periods.",
-    num: 4
-  },
-  {
-    icon: "📍",
-    title: "Find Your Polling Place",
-    desc: "Locate your designated polling station using your official election authority's website.",
-    num: 5
+    icon: "🏠",
+    title: "3. Find Your Polling Station",
+    desc: "Locate the polling station assigned to your registered address.",
+    detail: "Your voter ID card will usually have your polling station address. You can also check online with your voter ID number."
   },
   {
     icon: "🪪",
-    title: "Bring Required ID",
-    desc: "Check what forms of identification are required in your state or country and bring them on election day.",
-    num: 6
+    title: "4. Bring Valid ID",
+    desc: "Carry your official voter ID card and government-issued photo ID to the polls.",
+    detail: "Accepted IDs typically include: voter card, passport, driver's license, or other government-issued identity documents."
   },
   {
-    icon: "🗳️",
-    title: "Cast Your Vote",
-    desc: "Go to your polling place, follow instructions from poll workers, cast your ballot, and collect your 'I Voted' sticker!",
-    num: 7
+    icon: "☑️",
+    title: "5. Cast Your Ballot",
+    desc: "Mark your choice clearly on the ballot paper and submit it according to instructions.",
+    detail: "In some elections you use paper ballots, in others Electronic Voting Machines (EVMs). Follow the instructions of polling officials."
+  },
+  {
+    icon: "🔒",
+    title: "6. Vote is Secured",
+    desc: "Your completed ballot is sealed and stored securely until official counting begins.",
+    detail: "Ballots are kept in sealed boxes monitored by election officials and party representatives to ensure integrity."
+  },
+  {
+    icon: "📊",
+    title: "7. Counting & Results",
+    desc: "Votes are counted transparently and results are officially declared.",
+    detail: "Counting happens under supervision of election officers and party representatives. Results are publicly announced and can be challenged through legal processes."
   }
 ];
 
-const QUIZ_DATA = [
-  {
-    q: "What is voter registration?",
-    options: [
-      "A process of signing up to be eligible to vote",
-      "A way to register a political party",
-      "A form of paying election taxes",
-      "A mandatory civic exam"
-    ],
-    answer: 0,
-    explanation: "Voter registration is the process where eligible citizens sign up with their local election authority to be allowed to vote in elections."
-  },
-  {
-    q: "What is a primary election?",
-    options: [
-      "The final election between all candidates",
-      "An election held within a party to select its candidate",
-      "A vote only for the president",
-      "An election for school representatives"
-    ],
-    answer: 1,
-    explanation: "A primary election is held within a political party so voters can choose which candidate will represent that party in the general election."
-  },
-  {
-    q: "On which document do voters cast their choices?",
-    options: ["Census form", "Tax return", "Ballot", "Poll card"],
-    answer: 2,
-    explanation: "A ballot is the official document or electronic interface used by voters to record their choices in an election."
-  },
-  {
-    q: "What does 'electoral roll' mean?",
-    options: [
-      "A list of all candidates running for office",
-      "A list of all registered voters eligible to vote",
-      "A roll call in parliament",
-      "A type of mail-in ballot"
-    ],
-    answer: 1,
-    explanation: "The electoral roll (also called the voter register) is the official list of all citizens who are registered and eligible to vote."
-  },
-  {
-    q: "What is a polling station?",
-    options: [
-      "A radio broadcasting studio",
-      "A research center for surveys",
-      "A designated location where voters go to cast their ballots",
-      "The headquarters of a political party"
-    ],
-    answer: 2,
-    explanation: "A polling station (or polling place) is an official location designated for voters to cast their ballots on election day."
-  },
-  {
-    q: "What happens in an election runoff?",
-    options: [
-      "Votes are recounted automatically",
-      "A second election is held when no candidate wins a required majority",
-      "All losing candidates are eliminated",
-      "The winner is decided by a coin toss"
-    ],
-    answer: 1,
-    explanation: "A runoff election occurs when no candidate receives the required majority in the first election, so a second round is held between the top candidates."
-  },
-  {
-    q: "What is absentee/mail-in voting?",
-    options: [
-      "Voting by phone",
-      "Voting through a representative",
-      "Casting a ballot by mail when unable to vote in person",
-      "An internet-based voting system"
-    ],
-    answer: 2,
-    explanation: "Absentee or mail-in voting allows registered voters to submit their ballot by mail if they cannot attend a polling station in person on election day."
-  },
-  {
-    q: "How is the winner of most elections typically determined?",
-    options: [
-      "Random lottery among all candidates",
-      "Appointment by the current leader",
-      "The candidate with the most votes wins",
-      "The oldest candidate wins by default"
-    ],
-    answer: 2,
-    explanation: "In most democratic elections, the candidate who receives the most votes (plurality) wins the election, though some systems require an absolute majority."
-  },
-  {
-    q: "What does 'nonpartisan' mean in the context of elections?",
-    options: [
-      "Supporting only one political party",
-      "Not affiliated with or favoring any political party",
-      "A party that runs no candidates",
-      "An international election observer"
-    ],
-    answer: 1,
-    explanation: "'Nonpartisan' means not affiliated with or biased toward any political party. Nonpartisan organizations provide neutral election information."
-  },
-  {
-    q: "Why is civic participation important in a democracy?",
-    options: [
-      "It is not important; elections run themselves",
-      "Only politicians need to participate",
-      "Voting and civic engagement ensure citizens have a voice in governance",
-      "Participation is only required during wartime"
-    ],
-    answer: 2,
-    explanation: "Civic participation, especially voting, is fundamental to democracy because it ensures that citizens collectively determine who leads and what policies are enacted."
-  }
-];
-
-const BOT_KNOWLEDGE = {
-  "voter registration": "Voter registration is the process of signing up with your local election authority to become eligible to vote. You typically provide your name, address, date of birth, and citizenship status. Deadlines vary — some places allow same-day registration, while others require weeks in advance.",
-  "register to vote": "To register to vote: (1) Check your eligibility (citizenship, age, residency). (2) Visit your official election authority's website or office. (3) Complete the registration form. (4) Submit before the deadline. Many countries also allow online registration!",
-  "primary election": "A primary election is held within a political party to choose which candidate will represent that party in the general election. Voters in party primaries typically need to be registered members of that party, though some states hold open primaries.",
-  "general election": "A general election is the main election where voters choose between candidates from different parties (or independent candidates) for a government office. This is the final election that determines who wins the position.",
-  "electoral college": "The Electoral College is a unique system used in U.S. presidential elections. Instead of a direct popular vote, each state has a number of 'electors' based on its congressional representation. Candidates need 270 of 538 electoral votes to win the presidency.",
-  "vote counting": "Vote counting begins after polls close. Election workers count paper ballots, electronic votes, and mail-in ballots. Results go through verification and certification processes. Official results can take days to weeks, especially in close races.",
-  "absentee": "Absentee voting (also called mail-in voting) lets registered voters cast their ballot by mail when they can't go to a polling station in person — for reasons like travel, illness, or disability. You typically need to request an absentee ballot in advance.",
-  "polling place": "A polling place (or polling station) is an official location where voters go to cast their ballots on election day. It's usually a public building like a school, library, or community center. You can find yours through your election authority's website.",
-  "ballot": "A ballot is the official document or screen through which you record your vote. It lists all candidates and issues (like referendums) you can vote on. After completing your ballot, it's securely collected and counted.",
-  "runoff": "A runoff election happens when no candidate wins a required threshold (like 50% of votes) in the first election. The top candidates face each other in a second election. Runoffs are common in many countries and some U.S. states.",
-  "democracy": "Democracy is a system of government where power is held by the citizens, who exercise it through free and fair elections. It guarantees rights like freedom of speech, press, and assembly. There are two main types: direct democracy and representative democracy.",
-  "candidate": "An election candidate is a person who is running for a political office. Candidates typically represent a political party or run as independents. They must meet legal requirements (age, citizenship, etc.) and formally file to run with election authorities.",
-  "election day": "Election Day is the official day when voters cast their ballots. Polls usually open early in the morning (like 6 or 7 AM) and close in the evening. You'll need to go to your designated polling place and may need to show ID.",
-  "voter id": "Voter ID requirements vary by location. Some places require government-issued photo ID, while others accept utility bills or have no ID requirement. Always check your local election authority's website for the current requirements in your area.",
-  "campaign": "An election campaign is a candidate's organized effort to win votes. It includes rallies, debates, advertisements, social media, and door-to-door canvassing. Campaigns are regulated by laws that govern fundraising, spending, and advertising.",
-  "default": "That's a great election-related question! The election process involves registration, campaigning, voting, and counting. Every democratic country has specific rules about eligibility, timelines, and procedures. I recommend checking your official election authority's website for accurate local information. Is there a specific aspect of elections you'd like to know more about?"
-};
-
-/* ===================================================
-   UTILITY FUNCTIONS
-   =================================================== */
-
-/**
- * Safely get DOM element by ID
- * @param {string} id
- * @returns {HTMLElement|null}
- */
-function getEl(id) {
-  return document.getElementById(id);
-}
-
-/**
- * Debounce function
- * @param {Function} fn
- * @param {number} wait
- * @returns {Function}
- */
-function debounce(fn, wait) {
-  let t;
-  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
-}
-
-/**
- * Sanitize user input to prevent XSS
- * @param {string} str
- * @returns {string}
- */
-function sanitize(str) {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
-}
-
-/**
- * Scroll element into view smoothly
- * @param {HTMLElement} el
- */
-function scrollToEl(el) {
-  if (!el) return;
-  el.scrollIntoView({ behavior: "smooth", block: "end" });
-}
-
-/* ===================================================
-   NAVIGATION
-   =================================================== */
-
-function initNavigation() {
-  const hamburger = getEl("hamburger");
-  const mobileMenu = getEl("mobile-menu");
-
-  if (hamburger && mobileMenu) {
-    hamburger.addEventListener("click", () => {
-      const isOpen = mobileMenu.classList.toggle("open");
-      hamburger.setAttribute("aria-expanded", String(isOpen));
-      mobileMenu.setAttribute("aria-hidden", String(!isOpen));
-    });
-
-    // Close on link click
-    mobileMenu.querySelectorAll(".nav-link").forEach(link => {
-      link.addEventListener("click", () => {
-        mobileMenu.classList.remove("open");
-        hamburger.setAttribute("aria-expanded", "false");
-        mobileMenu.setAttribute("aria-hidden", "true");
-      });
-    });
-  }
-
-  // Highlight active nav link on scroll
-  const sections = document.querySelectorAll("section[id]");
-  const navLinks = document.querySelectorAll(".main-nav .nav-link");
-
-  const observer = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const id = entry.target.getAttribute("id");
-        navLinks.forEach(link => {
-          const isActive = link.getAttribute("href") === `#${id}`;
-          link.classList.toggle("active", isActive);
-          link.setAttribute("aria-current", isActive ? "page" : "false");
-        });
-      }
-    });
-  }, { rootMargin: "-50% 0px -50% 0px" });
-
-  sections.forEach(s => observer.observe(s));
-}
-
-/* ===================================================
-   SCROLL TO TOP
-   =================================================== */
-
-function initScrollTop() {
-  const btn = getEl("scroll-top");
-  if (!btn) return;
-
-  const toggle = debounce(() => {
-    btn.classList.toggle("visible", window.scrollY > 400);
-    btn.hidden = window.scrollY <= 400;
-  }, 100);
-
-  window.addEventListener("scroll", toggle, { passive: true });
-
-  btn.addEventListener("click", () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+const stepsGrid = document.getElementById('stepsGrid');
+stepsData.forEach((step, i) => {
+  const card = document.createElement('div');
+  card.className = 'step-card';
+  card.innerHTML = `
+    <div class="step-num">0${i + 1}</div>
+    <div class="step-icon">${step.icon}</div>
+    <h3>${step.title}</h3>
+    <p>${step.desc}</p>
+    <div class="step-card__expand">+ Learn more</div>
+    <div class="step-card__detail">${step.detail}</div>`;
+  card.querySelector('.step-card__expand').addEventListener('click', () => {
+    card.classList.toggle('expanded');
+    card.querySelector('.step-card__expand').textContent = card.classList.contains('expanded') ? '− Show less' : '+ Learn more';
   });
-}
-
-/* ===================================================
-   STEPS GRID — render dynamically
-   =================================================== */
-
-function initSteps() {
-  const grid = document.querySelector(".steps-grid");
-  if (!grid) return;
-
-  const fragment = document.createDocumentFragment();
-
-  STEPS_DATA.forEach(step => {
-    const card = document.createElement("article");
-    card.className = "step-card";
-    card.setAttribute("role", "listitem");
-    card.setAttribute("aria-label", `Step ${step.num}: ${step.title}`);
-    card.innerHTML = `
-      <div class="step-num" aria-hidden="true">${step.num}</div>
-      <span class="step-icon" aria-hidden="true">${step.icon}</span>
-      <h3>${step.title}</h3>
-      <p>${step.desc}</p>
-    `;
-    fragment.appendChild(card);
-  });
-
-  grid.appendChild(fragment);
-}
-
-/* ===================================================
-   QUIZ
-   =================================================== */
-
-const QuizState = {
-  current: 0,
-  score: 0,
-  answered: false
-};
-
-function initQuiz() {
-  renderQuestion();
-}
-
-function renderQuestion() {
-  const box = getEl("quiz-box");
-  if (!box) return;
-
-  const { current } = QuizState;
-
-  if (current >= QUIZ_DATA.length) {
-    renderResult();
-    return;
-  }
-
-  const q = QUIZ_DATA[current];
-  const progress = Math.round(((current) / QUIZ_DATA.length) * 100);
-
-  box.innerHTML = `
-    <div class="quiz-progress" aria-label="Quiz progress: question ${current + 1} of ${QUIZ_DATA.length}">
-      <span>Question ${current + 1} of ${QUIZ_DATA.length}</span>
-      <span>${QuizState.score} correct</span>
-    </div>
-    <div class="progress-bar-wrap" role="progressbar" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100" aria-label="Quiz progress: ${progress}%">
-      <div class="progress-bar" style="width:${progress}%"></div>
-    </div>
-    <div class="quiz-question">
-      <span class="quiz-q-label">Question ${current + 1}</span>
-      <p class="quiz-q-text">${q.q}</p>
-      <div class="quiz-options" role="group" aria-label="Answer options">
-        ${q.options.map((opt, i) => `
-          <button
-            class="quiz-option"
-            data-index="${i}"
-            aria-label="Option ${i + 1}: ${opt}"
-          >${opt}</button>
-        `).join("")}
-      </div>
-      <div id="quiz-feedback" aria-live="polite" aria-atomic="true"></div>
-    </div>
-    <div class="quiz-nav">
-      <button class="btn-quiz-next" id="quiz-next" style="display:none;" aria-label="Next question">
-        ${current + 1 < QUIZ_DATA.length ? "Next Question →" : "See Results →"}
-      </button>
-    </div>
-  `;
-
-  QuizState.answered = false;
-
-  // Bind option buttons
-  box.querySelectorAll(".quiz-option").forEach(btn => {
-    btn.addEventListener("click", () => handleAnswer(parseInt(btn.dataset.index)));
-  });
-
-  // Bind next button
-  const nextBtn = getEl("quiz-next");
-  if (nextBtn) {
-    nextBtn.addEventListener("click", () => {
-      QuizState.current++;
-      renderQuestion();
-    });
-  }
-}
-
-function handleAnswer(selectedIndex) {
-  if (QuizState.answered) return;
-  QuizState.answered = true;
-
-  const q = QUIZ_DATA[QuizState.current];
-  const isCorrect = selectedIndex === q.answer;
-  if (isCorrect) QuizState.score++;
-
-  const options = document.querySelectorAll(".quiz-option");
-  options.forEach((btn, i) => {
-    btn.disabled = true;
-    if (i === q.answer) btn.classList.add("correct");
-    if (i === selectedIndex && !isCorrect) btn.classList.add("wrong");
-  });
-
-  const feedback = getEl("quiz-feedback");
-  if (feedback) {
-    feedback.className = `quiz-feedback ${isCorrect ? "correct" : "wrong"}`;
-    feedback.innerHTML = `
-      <strong>${isCorrect ? "✅ Correct!" : "❌ Not quite."}</strong>
-      ${q.explanation}
-    `;
-  }
-
-  const nextBtn = getEl("quiz-next");
-  if (nextBtn) nextBtn.style.display = "flex";
-}
-
-function renderResult() {
-  const box = getEl("quiz-box");
-  if (!box) return;
-
-  const { score } = QuizState;
-  const total = QUIZ_DATA.length;
-  const pct = Math.round((score / total) * 100);
-  const msgs = [
-    { min: 90, msg: "🏆 Outstanding! You're an election expert!", color: "#16a34a" },
-    { min: 70, msg: "🌟 Great job! You have strong civic knowledge.", color: "#2563eb" },
-    { min: 50, msg: "👍 Good effort! Keep learning about democracy.", color: "#d97706" },
-    { min: 0, msg: "📚 Keep studying — democracy depends on informed voters!", color: "#dc2626" }
-  ];
-  const { msg, color } = msgs.find(m => pct >= m.min);
-
-  box.innerHTML = `
-    <div class="quiz-result" role="region" aria-label="Quiz results">
-      <span class="score-display" aria-label="Your score: ${score} out of ${total}">${score}/${total}</span>
-      <span class="score-label">${pct}% Correct</span>
-      <p class="score-msg" style="color:${color}">${msg}</p>
-      <button class="btn-quiz-retry" id="quiz-retry" aria-label="Retry the quiz">
-        🔄 Try Again
-      </button>
-    </div>
-  `;
-
-  const retry = getEl("quiz-retry");
-  if (retry) {
-    retry.addEventListener("click", () => {
-      QuizState.current = 0;
-      QuizState.score = 0;
-      QuizState.answered = false;
-      renderQuestion();
-    });
-  }
-}
-
-/* ===================================================
-   AI CHAT ASSISTANT
-   =================================================== */
-
-/**
- * Get a bot response from local knowledge base.
- * Falls back to Anthropic API if available.
- * @param {string} query
- * @returns {Promise<string>}
- */
-async function getBotResponse(query) {
-  const lq = query.toLowerCase();
-
-  // Try local knowledge base first for fast responses
-  for (const [key, value] of Object.entries(BOT_KNOWLEDGE)) {
-    if (key !== "default" && lq.includes(key)) {
-      return value;
-    }
-  }
-
-  // Try Anthropic API
-  try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        system: `You are an Election Process Education assistant. You help users understand how elections work, voting procedures, timelines, civic duties, and democratic processes. Keep responses clear, friendly, accurate, and nonpartisan. Use simple language. Focus only on election-related topics. If asked about unrelated topics, politely redirect to election education. Format responses in 2-3 short paragraphs maximum.`,
-        messages: [{ role: "user", content: query }]
-      })
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      const text = data.content
-        .filter(block => block.type === "text")
-        .map(block => block.text)
-        .join("\n");
-      return text || BOT_KNOWLEDGE["default"];
-    }
-  } catch (err) {
-    // API not available — use local knowledge
-    console.warn("API unavailable, using local knowledge:", err.message);
-  }
-
-  return BOT_KNOWLEDGE["default"];
-}
-
-function addMessage(text, isUser = false) {
-  const container = getEl("chat-messages");
-  if (!container) return;
-
-  const msg = document.createElement("div");
-  msg.className = `message ${isUser ? "user-message" : "bot-message"}`;
-  msg.setAttribute("role", "article");
-  msg.setAttribute("aria-label", `${isUser ? "Your" : "Assistant"} message`);
-
-  const icon = isUser ? "👤" : "🗳️";
-  // Sanitize user text; bot text allowed to contain simple HTML
-  const displayText = isUser
-    ? sanitize(text)
-    : text.replace(/\n\n/g, "</p><p>").replace(/\n/g, "<br/>");
-
-  msg.innerHTML = `
-    <span class="msg-icon" aria-hidden="true">${icon}</span>
-    <div class="msg-bubble"><p>${displayText}</p></div>
-  `;
-
-  container.appendChild(msg);
-  scrollToEl(msg);
-}
-
-function addLoadingMessage() {
-  const container = getEl("chat-messages");
-  if (!container) return null;
-
-  const msg = document.createElement("div");
-  msg.className = "message bot-message";
-  msg.id = "loading-msg";
-  msg.setAttribute("role", "status");
-  msg.setAttribute("aria-label", "Assistant is typing");
-  msg.innerHTML = `
-    <span class="msg-icon" aria-hidden="true">🗳️</span>
-    <div class="msg-bubble">
-      <div class="loading-dots" aria-hidden="true">
-        <span></span><span></span><span></span>
-      </div>
-    </div>
-  `;
-  container.appendChild(msg);
-  scrollToEl(msg);
-  return msg;
-}
-
-function initChat() {
-  const form = getEl("chat-form");
-  const input = getEl("chat-input");
-  const sendBtn = getEl("send-btn");
-
-  if (!form || !input) return;
-
-  const handleSubmit = async (queryText) => {
-    const query = (queryText || input.value).trim();
-    if (!query) return;
-
-    input.value = "";
-    input.disabled = true;
-    if (sendBtn) sendBtn.disabled = true;
-
-    addMessage(query, true);
-    const loader = addLoadingMessage();
-
-    try {
-      const reply = await getBotResponse(query);
-      if (loader) loader.remove();
-      addMessage(reply, false);
-    } catch (err) {
-      if (loader) loader.remove();
-      addMessage("I'm sorry, I couldn't process your question right now. Please try again.", false);
-    } finally {
-      input.disabled = false;
-      if (sendBtn) sendBtn.disabled = false;
-      input.focus();
-    }
-  };
-
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    handleSubmit();
-  });
-
-  // Quick prompt buttons
-  document.querySelectorAll(".quick-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const q = btn.dataset.q;
-      if (q) handleSubmit(q);
-    });
-  });
-}
-
-/* ===================================================
-   INTERSECTION OBSERVER — Animate on scroll
-   =================================================== */
-
-function initScrollAnimations() {
-  const targets = document.querySelectorAll(
-    ".step-card, .resource-card, .timeline-item, .quiz-question"
-  );
-
-  const observer = new IntersectionObserver(entries => {
-    entries.forEach((entry, i) => {
-      if (entry.isIntersecting) {
-        entry.target.style.animationDelay = `${i * 0.06}s`;
-        entry.target.style.opacity = "1";
-        entry.target.style.transform = "translateY(0)";
-        observer.unobserve(entry.target);
-      }
-    });
-  }, { threshold: 0.12 });
-
-  targets.forEach(el => {
-    el.style.opacity = "0";
-    el.style.transform = "translateY(24px)";
-    el.style.transition = "opacity 0.5s ease, transform 0.5s ease";
-    observer.observe(el);
-  });
-}
-
-/* ===================================================
-   GOOGLE SERVICES INTEGRATION
-   =================================================== */
-
-/**
- * Google Analytics 4 tracking initialization
- * Swap in your actual G-XXXXXXXX measurement ID.
- */
-function initGoogleAnalytics() {
-  const GA_MEASUREMENT_ID = "G-XXXXXXXXXX"; // Replace with actual ID
-
-  try {
-    // Dynamically load gtag.js
-    const script = document.createElement("script");
-    script.async = true;
-    script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
-    script.onerror = () => console.warn("Google Analytics script failed to load.");
-    document.head.appendChild(script);
-
-    window.dataLayer = window.dataLayer || [];
-    function gtag() { window.dataLayer.push(arguments); }
-    window.gtag = gtag;
-    gtag("js", new Date());
-    gtag("config", GA_MEASUREMENT_ID, {
-      page_title: document.title,
-      page_path: window.location.pathname,
-      anonymize_ip: true
-    });
-
-    // Track key user events
-    document.querySelectorAll(".btn-primary, .btn-outline").forEach(btn => {
-      btn.addEventListener("click", () => {
-        gtag("event", "cta_click", {
-          event_category: "engagement",
-          event_label: btn.textContent.trim()
-        });
-      });
-    });
-
-    // Track quiz completion
-    document.addEventListener("quizComplete", (e) => {
-      gtag("event", "quiz_complete", {
-        event_category: "quiz",
-        event_label: "Election Quiz",
-        value: e.detail?.score || 0
-      });
-    });
-
-    // Track chat messages
-    document.addEventListener("chatMessage", (e) => {
-      gtag("event", "chat_interaction", {
-        event_category: "assistant",
-        event_label: "User asked question"
-      });
-    });
-
-    console.info("Google Analytics initialized.");
-  } catch (err) {
-    console.warn("Google Analytics initialization error:", err);
-  }
-}
-
-/**
- * Firebase integration stub
- * Uncomment and configure with your Firebase project settings.
- */
-function initFirebase() {
-  try {
-    // Firebase configuration (replace with your values)
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT.appspot.com",
-      messagingSenderId: "YOUR_SENDER_ID",
-      appId: "YOUR_APP_ID"
-    };
-
-    // Load Firebase SDK dynamically
-    // import { initializeApp } from 'firebase/app';
-    // import { getFirestore, collection, addDoc } from 'firebase/firestore';
-    // const app = initializeApp(firebaseConfig);
-    // const db = getFirestore(app);
-
-    // Stub: Log quiz results to Firestore
-    window.logQuizResult = async (score, total) => {
-      /* 
-      await addDoc(collection(db, "quiz_results"), {
-        score, total, timestamp: new Date().toISOString()
-      });
-      */
-      console.info(`[Firebase stub] Quiz result: ${score}/${total}`);
-    };
-
-    console.info("Firebase integration stub ready.");
-  } catch (err) {
-    console.warn("Firebase init error:", err);
-  }
-}
-
-/* ===================================================
-   PERFORMANCE & SECURITY
-   =================================================== */
-
-/**
- * Content Security Policy meta tag (programmatic supplement)
- * Main CSP should be set via HTTP headers on the server.
- */
-function applySecurityMeta() {
-  // Ensure referrer policy
-  const rp = document.querySelector("meta[name='referrer']");
-  if (!rp) {
-    const meta = document.createElement("meta");
-    meta.name = "referrer";
-    meta.content = "strict-origin-when-cross-origin";
-    document.head.appendChild(meta);
-  }
-}
-
-/**
- * Lazy-load images that are off-screen (if any images are added later)
- */
-function initLazyLoad() {
-  if ("loading" in HTMLImageElement.prototype) {
-    document.querySelectorAll("img").forEach(img => {
-      img.loading = "lazy";
-    });
-  }
-}
-
-/* ===================================================
-   TESTING HOOKS (for automated testing)
-   =================================================== */
-
-/**
- * Expose testable functions for integration testing.
- * In production, these can be stripped by a build tool.
- */
-if (typeof window !== "undefined") {
-  window.__ElectEdTests = {
-    sanitize,
-    getBotResponse,
-    QUIZ_DATA,
-    STEPS_DATA,
-    QuizState,
-    renderQuestion,
-    handleAnswer,
-    renderResult
-  };
-}
-
-/* ===================================================
-   INIT — Run when DOM is ready
-   =================================================== */
-
-document.addEventListener("DOMContentLoaded", () => {
-  // Core features
-  initNavigation();
-  initScrollTop();
-  initSteps();
-  initQuiz();
-  initChat();
-
-  // Visual enhancements
-  initScrollAnimations();
-
-  // Performance & security
-  applySecurityMeta();
-  initLazyLoad();
-
-  // Google Services
-  initGoogleAnalytics();
-  initFirebase();
-
-  console.info("✅ ElectEd initialized successfully.");
+  stepsGrid.appendChild(card);
 });
 
-/* ===================================================
-   SERVICE WORKER registration (PWA / Efficiency)
-   =================================================== */
-
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").then(reg => {
-      console.info("Service Worker registered:", reg.scope);
-    }).catch(err => {
-      console.warn("Service Worker registration failed:", err);
-    });
+// ========== INTERSECTION OBSERVER (reveal) ==========
+const revealObserver = new IntersectionObserver((entries) => {
+  entries.forEach((e, i) => {
+    if (e.isIntersecting) {
+      setTimeout(() => e.target.classList.add('visible'), i * 80);
+      revealObserver.unobserve(e.target);
+    }
   });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.timeline-item, .step-card, .glossary-card').forEach(el => revealObserver.observe(el));
+
+// ========== QUIZ ENGINE ==========
+const quizData = [
+  { q: "At what age can citizens typically start voting in most democracies?", opts: ["16", "18", "21", "25"], correct: 1, explain: "Most democracies set the voting age at 18, though some countries like Austria and Scotland allow voting at 16." },
+  { q: "What must you do FIRST before you can vote in an election?", opts: ["Watch the news", "Register to vote", "Choose a candidate", "Visit the polling station"], correct: 1, explain: "Voter registration is the mandatory first step. Without registration, you cannot cast a valid ballot." },
+  { q: "What is a 'polling station'?", opts: ["A TV news studio", "A place where votes are collected on election day", "The election commission office", "Where candidates campaign"], correct: 1, explain: "A polling station (or polling place) is the official location where registered voters go to cast their ballots on election day." },
+  { q: "What is the purpose of a secret ballot?", opts: ["To keep election results secret", "To ensure your vote is counted twice", "To protect voter privacy and prevent coercion", "To make elections faster"], correct: 2, explain: "The secret ballot ensures that no one can see how you voted, protecting your freedom of choice and preventing bribery or intimidation." },
+  { q: "What happens during the 'campaign blackout period'?", opts: ["All elections are postponed", "Campaigning is prohibited close to election day", "Voters cannot leave the country", "The media stops reporting news"], correct: 1, explain: "A campaign blackout (usually 24–48 hours before voting) prohibits campaigning to give voters peaceful time to make their final decision." },
+  { q: "Who is responsible for overseeing elections in most countries?", opts: ["The ruling political party", "The military", "An independent Election Commission", "The President or Prime Minister"], correct: 2, explain: "Independent Election Commissions are established to conduct free and fair elections without bias toward any political party." },
+  { q: "What does 'first past the post' mean in elections?", opts: ["The candidate who files first wins", "The candidate with the most votes wins", "Voters rank candidates by preference", "The oldest candidate wins automatically"], correct: 1, explain: "'First past the post' means the candidate who receives the most votes in their constituency wins, regardless of whether they get a majority." }
+];
+
+let quizIndex = 0;
+let quizScore = 0;
+let quizAnswered = false;
+
+function loadQuiz() {
+  if (quizIndex >= quizData.length) { showQuizResult(); return; }
+  const q = quizData[quizIndex];
+  document.getElementById('quizProgressBar').style.width = `${((quizIndex) / quizData.length) * 100}%`;
+  document.getElementById('quizQuestion').textContent = `Q${quizIndex + 1}. ${q.q}`;
+  const optionsEl = document.getElementById('quizOptions');
+  optionsEl.innerHTML = '';
+  q.opts.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'quiz-option';
+    btn.textContent = opt;
+    btn.addEventListener('click', () => handleAnswer(i, btn));
+    optionsEl.appendChild(btn);
+  });
+  document.getElementById('quizFeedback').textContent = '';
+  document.getElementById('quizNext').style.display = 'none';
+  quizAnswered = false;
 }
+
+function handleAnswer(chosen, btn) {
+  if (quizAnswered) return;
+  quizAnswered = true;
+  const q = quizData[quizIndex];
+  const allBtns = document.querySelectorAll('.quiz-option');
+  allBtns.forEach(b => b.disabled = true);
+  allBtns[q.correct].classList.add('correct');
+  const feedbackEl = document.getElementById('quizFeedback');
+  if (chosen === q.correct) {
+    quizScore++;
+    feedbackEl.textContent = '✅ Correct! ' + q.explain;
+    feedbackEl.style.color = '#4ade80';
+  } else {
+    btn.classList.add('wrong');
+    feedbackEl.textContent = '❌ Not quite. ' + q.explain;
+    feedbackEl.style.color = '#f87171';
+  }
+  document.getElementById('quizNext').style.display = 'inline-block';
+}
+
+function showQuizResult() {
+  document.getElementById('quizProgressBar').style.width = '100%';
+  document.getElementById('quizQuestion').textContent = '';
+  document.getElementById('quizOptions').innerHTML = '';
+  document.getElementById('quizFeedback').textContent = '';
+  document.getElementById('quizNext').style.display = 'none';
+  const pct = Math.round((quizScore / quizData.length) * 100);
+  const msgs = [
+    [0, 49, "Keep learning! Every citizen can master the election process. 💪"],
+    [50, 74, "Good effort! You're on your way to becoming an informed voter. 🗳️"],
+    [75, 89, "Great work! You have a solid understanding of the election process. 🌟"],
+    [90, 100, "Excellent! You're an election process expert! 🏆"]
+  ];
+  const msg = msgs.find(m => pct >= m[0] && pct <= m[1])?.[2] || '';
+  const resultEl = document.getElementById('quizResult');
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = `
+    <p style="color:rgba(255,255,255,0.7);font-size:0.9rem;">Your Score</p>
+    <span class="quiz-result__score">${pct}%</span>
+    <p class="quiz-result__msg">${msg}</p>
+    <p style="color:rgba(255,255,255,0.6);margin-bottom:20px;">You got ${quizScore} out of ${quizData.length} questions correct</p>
+    <button class="btn btn--primary" onclick="restartQuiz()">Try Again</button>`;
+}
+
+function restartQuiz() {
+  quizIndex = 0;
+  quizScore = 0;
+  document.getElementById('quizResult').style.display = 'none';
+  loadQuiz();
+}
+
+document.getElementById('quizNext').addEventListener('click', () => {
+  quizIndex++;
+  loadQuiz();
+});
+
+loadQuiz();
+
+// ========== AI CHATBOT (Offline Smart Responses) ==========
+const knowledgeBase = [
+  {
+    keywords: ['register','registration','sign up','enroll'],
+    answer: `📝 To register to vote:\n\n1. Check you meet the eligibility requirements (age 18+, citizenship, residency)\n2. Visit your local election commission office OR register online at your government's official website\n3. Carry your ID proof and address proof\n4. Submit the form before the registration deadline\n\nIn India, you can register at voters.eci.gov.in using Form 6. Your Voter ID card will be mailed to you! 🗳️`
+  },
+  {
+    keywords: ['eligibility','eligible','qualify','who can vote','requirements'],
+    answer: `✅ Voting Eligibility Requirements:\n\n• Age: Must be 18 years or older\n• Citizenship: Must be a citizen of the country\n• Residency: Must reside in the constituency where you register\n• Mental competence: Must be of sound mind\n• Not disqualified: No certain criminal convictions\n\nOnce you meet these criteria, register and you're ready to vote! 🌟`
+  },
+  {
+    keywords: ['how to vote','cast','ballot','polling','voting process','steps'],
+    answer: `🗳️ How to Vote — Step by Step:\n\n1. ✅ Check your eligibility\n2. 📝 Register to vote before deadline\n3. 🏠 Find your assigned polling station\n4. 🪪 Bring your Voter ID card + photo ID\n5. ☑️ Go to polling station on election day\n6. 📋 Give your name, get your ballot\n7. 🔒 Mark your choice privately\n8. 📮 Submit your ballot\n\nYour vote is secret and secure! 💪`
+  },
+  {
+    keywords: ['secret ballot','secret','privacy','anonymous'],
+    answer: `🔒 Secret Ballot:\n\nA secret ballot means NO ONE can see how you voted — not the government, not your employer, not your family!\n\nThis protects you from:\n• Bribery or pressure\n• Retaliation for your vote\n• Coercion by powerful people\n\nYou vote alone in a private booth. Your ballot has no name on it. This is a fundamental democratic right! 🛡️`
+  },
+  {
+    keywords: ['count','counting','result','declare','tally'],
+    answer: `📊 How Votes Are Counted:\n\n1. Polling stations close at the designated time\n2. Ballot boxes are sealed and transported securely\n3. Counting begins under supervision of election officials\n4. Party representatives can observe the counting\n5. Results are tallied constituency by constituency\n6. Winning candidate is officially declared\n7. Results are published publicly\n\nThe entire process is transparent and monitored! 👁️`
+  },
+  {
+    keywords: ['id','identification','document','carry','need','bring'],
+    answer: `🪪 Documents Needed to Vote:\n\nYou typically need to bring:\n• Voter ID Card (most important!)\n• Any one of: Passport, Driving License, Aadhaar Card, PAN Card, Bank Passbook with photo\n\nIn India, the Election Commission accepts 12 alternative IDs if you don't have your Voter ID card.\n\nAlways check your local election commission's website for the exact list! ✅`
+  },
+  {
+    keywords: ['polling station','polling booth','where','location','find'],
+    answer: `🏠 Finding Your Polling Station:\n\n• Your Voter ID card has your polling station address printed on it\n• Check online: voters.eci.gov.in (India) or your country's election website\n• Call your local election commission helpline\n• Ask your local government office\n\nPolling stations are usually at schools, community halls, or government buildings near your home. They must be within 2km of your residence! 📍`
+  },
+  {
+    keywords: ['moved','relocated','new address','changed address','different city'],
+    answer: `🏡 If You Moved Recently:\n\nYou need to update your voter registration!\n\nIn India, submit Form 8A to transfer your registration to your new address, or Form 6 if you're registering fresh.\n\nImportant:\n• Update before the registration deadline\n• You can only vote where you are registered\n• If you haven't updated yet, you may need to travel to your old constituency this election\n\nDo it early to avoid last-minute problems! ⏰`
+  },
+  {
+    keywords: ['proportional','representation','pr','system'],
+    answer: `⚖️ Proportional Representation (PR):\n\nIn a PR system, seats in parliament are allocated based on the percentage of votes each party receives.\n\nExample: If Party A gets 40% of votes, they get roughly 40% of seats.\n\nCompare to "First Past the Post" where the candidate with most votes wins — even with just 35%!\n\nPR is used in: Germany, Netherlands, South Africa\nFirst Past the Post: India, UK, USA\n\nBoth systems have pros and cons! 🌍`
+  },
+  {
+    keywords: ['blackout','silence period','campaign stop'],
+    answer: `🔇 Campaign Blackout Period:\n\nThis is a period (usually 48 hours) before voting day when ALL campaigning must STOP.\n\nWhat's banned:\n• Political rallies and speeches\n• Advertisements (TV, radio, social media)\n• Distributing pamphlets\n• Any public canvassing\n\nWhy? To give voters peaceful time to make their final decision without pressure.\n\nViolating the blackout is a serious election offense! ⚖️`
+  },
+  {
+    keywords: ['commission','election commission','eci','official','authority'],
+    answer: `🏛️ The Election Commission:\n\nThe Election Commission is an INDEPENDENT body that:\n• Announces election dates\n• Maintains voter rolls\n• Enforces the Model Code of Conduct\n• Monitors campaigns for rule violations\n• Oversees the entire voting and counting process\n• Declares official results\n\nIn India, the Election Commission of India (ECI) is constitutionally independent — no political party can interfere with it. This ensures free and fair elections! 🇮🇳`
+  },
+  {
+    keywords: ['evm','electronic voting machine','machine','digital vote'],
+    answer: `🖥️ Electronic Voting Machines (EVMs):\n\nIndia uses EVMs instead of paper ballots. Here's how they work:\n\n1. The EVM shows all candidate names with their party symbols\n2. Press the button next to your chosen candidate\n3. A beep confirms your vote\n4. The VVPAT machine shows a paper slip for 7 seconds to verify\n\nEVMs are:\n• Not connected to internet (cannot be hacked remotely)\n• Sealed and tamper-evident\n• Verified before and after elections\n\nYour vote is safe! 🔒`
+  },
+  {
+    keywords: ['hello','hi','hey','help','what can you','start'],
+    answer: `👋 Hello! I'm your Election Education Assistant!\n\nI can help you understand:\n🗳️ How to register to vote\n📋 Step-by-step voting process\n🏠 Finding your polling station\n🔒 How secret ballots work\n📊 How votes are counted\n⚖️ Different voting systems\n📅 Election timelines\n\nJust ask me anything about elections! Try one of the suggested questions below. 😊`
+  }
+];
+
+function getSmartResponse(userText) {
+  const lower = userText.toLowerCase();
+  for (const entry of knowledgeBase) {
+    if (entry.keywords.some(k => lower.includes(k))) {
+      return entry.answer;
+    }
+  }
+  return `🤔 Great question! Here's what I know about elections:\n\nFor specific questions about "${userText}", I recommend:\n\n• 🇮🇳 India: voters.eci.gov.in or call 1950\n• 🌍 International: Your country's official Election Commission website\n\nMeanwhile, feel free to ask me about:\n• How to register to vote\n• Voting steps\n• What ID to bring\n• How votes are counted\n• Secret ballot system\n\nI'm here to help! 😊`;
+}
+
+const suggestedQuestions = [
+  "How do I register to vote?",
+  "What is a secret ballot?",
+  "How are votes counted?",
+  "What is proportional representation?",
+  "Can I vote if I moved recently?",
+  "What ID do I need to vote?"
+];
+
+const suggestedQsEl = document.getElementById('suggestedQs');
+suggestedQuestions.forEach(q => {
+  const btn = document.createElement('button');
+  btn.className = 'suggested-q';
+  btn.textContent = q;
+  btn.addEventListener('click', () => sendChat(q));
+  suggestedQsEl.appendChild(btn);
+});
+
+const chatWindow = document.getElementById('chatWindow');
+const chatInput = document.getElementById('chatInput');
+const chatSend = document.getElementById('chatSend');
+
+let chatHistory = [];
+
+function addMessage(text, isUser) {
+  const msg = document.createElement('div');
+  msg.className = `chat-msg ${isUser ? 'chat-msg--user' : 'chat-msg--bot'}`;
+  msg.innerHTML = `
+    <div class="chat-avatar">${isUser ? '👤' : '🗳️'}</div>
+    <div class="chat-bubble">${text.replace(/\n/g, '<br/>')}</div>`;
+  chatWindow.appendChild(msg);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+function showTyping() {
+  const typing = document.createElement('div');
+  typing.className = 'chat-msg chat-msg--bot';
+  typing.id = 'typingIndicator';
+  typing.innerHTML = `
+    <div class="chat-avatar">🗳️</div>
+    <div class="chat-typing"><span></span><span></span><span></span></div>`;
+  chatWindow.appendChild(typing);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+function removeTyping() {
+  const t = document.getElementById('typingIndicator');
+  if (t) t.remove();
+}
+
+async function sendChat(userText) {
+  const text = userText || chatInput.value.trim();
+  if (!text) return;
+  chatInput.value = '';
+  addMessage(text, true);
+  chatHistory.push({ role: 'user', content: text });
+  showTyping();
+  chatSend.disabled = true;
+
+  try {
+    const response = await fetch('http://localhost:3000/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: chatHistory })
+    });
+    const data = await response.json();
+    removeTyping();
+    const reply = data.content?.map(c => c.text || '').join('')
+      || "Sorry, I couldn't get a response. Please try again!";
+    chatHistory.push({ role: 'assistant', content: reply });
+    addMessage(reply, false);
+  } catch (err) {
+    removeTyping();
+    const reply = getSmartResponse(text);
+    chatHistory.push({ role: 'assistant', content: reply });
+    addMessage(reply, false);
+  } finally {
+    chatSend.disabled = false;
+  }
+}
+
+chatSend.addEventListener('click', () => sendChat());
+chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
+
+// ========== GLOSSARY DATA ==========
+const glossaryData = [
+  { term: "Ballot", def: "An official document or card used to cast a vote in an election, either on paper or electronically." },
+  { term: "Candidate", def: "A person who seeks to be elected to a public office by competing in an election." },
+  { term: "Constituency", def: "A defined geographic area whose residents elect one or more representatives to a governing body." },
+  { term: "Democracy", def: "A system of government where citizens exercise power through free and fair elections." },
+  { term: "Electoral Roll", def: "The official list of all registered voters eligible to vote in an election." },
+  { term: "Exit Poll", def: "A survey of voters conducted immediately after they leave polling stations to predict election outcomes." },
+  { term: "Franchise", def: "The legal right to vote in public elections, also known as suffrage." },
+  { term: "Incumbent", def: "The current holder of a political office who is running for re-election." },
+  { term: "Majority", def: "More than half of the total votes cast; required to win in many electoral systems." },
+  { term: "Manifesto", def: "A published declaration of a political party's policies, intentions, and promises to voters." },
+  { term: "Polling Station", def: "An official location designated for voters to cast their ballots on election day." },
+  { term: "Proportional Representation", def: "An electoral system where seats are allocated to parties based on the share of votes they receive." },
+  { term: "Referendum", def: "A direct public vote on a specific question or policy proposal rather than for candidates." },
+  { term: "Suffrage", def: "The right to vote in political elections; universal suffrage means all citizens can vote." },
+  { term: "Turnout", def: "The percentage of eligible voters who actually cast a ballot in a given election." },
+  { term: "Swing Voter", def: "An undecided voter who could potentially vote for any party and significantly influences election outcomes." }
+];
+
+const glossaryGrid = document.getElementById('glossaryGrid');
+glossaryData.forEach(item => {
+  const card = document.createElement('div');
+  card.className = 'glossary-card';
+  card.innerHTML = `<div class="glossary-card__term">${item.term}</div><div class="glossary-card__def">${item.def}</div>`;
+  glossaryGrid.appendChild(card);
+  revealObserver.observe(card);
+});
+
+// ========== SMOOTH SCROLL FOR NAV LINKS ==========
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const target = document.querySelector(a.getAttribute('href'));
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Close mobile menu if open
+    if (navLinks.style.display === 'flex') navLinks.style.display = 'none';
+  });
+});
