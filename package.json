@@ -1,0 +1,50 @@
+{
+  "name": "elected-election-education",
+  "version": "1.0.0",
+  "description": "ElectED - Interactive Election Process Education Platform with AI Assistant",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "jest --coverage --verbose",
+    "test:watch": "jest --watch",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "election",
+    "education",
+    "voting",
+    "democracy",
+    "civic",
+    "interactive",
+    "AI",
+    "chatbot"
+  ],
+  "author": "ElectED Team",
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "collectCoverageFrom": [
+      "*.js",
+      "!server.js",
+      "!jest.config.js"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 80,
+        "functions": 80,
+        "lines": 80,
+        "statements": 80
+      }
+    },
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ],
+    "verbose": true
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
