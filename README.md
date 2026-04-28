@@ -23,4 +23,4 @@ It helps users get information related to elections in a simple way.
 - Supporting files  
 
 ## 👨‍💻 Author
-- Your Name
+- Selvam A
